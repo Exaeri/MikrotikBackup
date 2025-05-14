@@ -66,6 +66,7 @@ export default class logger {
     }
 
     static async clearLog() {
+        await checkFolder(this.#logsFolder);
         this.#flushCounters();
         try {
             await writeFile(this.#logsFilePath, '');

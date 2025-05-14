@@ -1,0 +1,5 @@
+host;username;password;port
+192.168.0.1;sshUser;userPassword;22
+192.168.0.2;sshUser2;userPassword;22
+192.168.0.3;sshUser3;userPassword;22
+192.168.0.4;sshUser4;userPassword;22

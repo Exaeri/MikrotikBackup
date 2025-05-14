@@ -1,5 +1,10 @@
 {
     "delays": {
-        "creatingBackup": 2000
+        "creatingBackup": 2000,
+        "listStep": 500
+    },
+
+    "files": {
+        "hostList": "hostList.csv"
     }
 }

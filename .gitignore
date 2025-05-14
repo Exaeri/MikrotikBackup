@@ -1,4 +1,5 @@
 /node_modules
 /backups
 /hosts/hostList.json
+/hosts/hostList.csv
 /logs

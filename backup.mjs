@@ -49,7 +49,7 @@ export  async function saveBackup(address, name, key, sshport) {
         await logger.addLine('Success', true);
         logger.countSaved();
     } catch (err) {
-        console.error('Failed:', err.message);
+        console.error(`Failed: ${err.message}\n`);
         await logger.addLine(`Failed: ${err.message}`, true);
         ssh.dispose();
         logger.countFailed();
