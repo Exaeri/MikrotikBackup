@@ -1,27 +1,18 @@
-import { readJSON } from './utility/readJson.mjs';
-import { readCSV } from './utility/csvParse.mjs';
-import { saveBackup } from './backup.mjs';
-import logger from './logger.mjs';
-import { delay } from './utility/delay.mjs';
+import { saveBackup } from './scripts/backup.mjs';
+import logger from './scripts/logger.mjs';
+import { delay } from './scripts/utility/delay.mjs';
+import { loadConfig } from './scripts/configLoader.mjs';
+import { getHosts } from './scripts/hostsParser.mjs';
 
-const config = await readJSON('config.json');
+const config = await loadConfig();
 
 async function backupHosts() {
   await logger.clearLog();
 
-  let hosts;
-  try {
-    hosts = await readCSV(`./hosts/${config.files.hostList}`);
-  } catch (err) {
-    console.error(err.message);
-    await logger.addLine(err.message);
-  return;
-  }
+  const hosts = await getHosts();
 
-  console.log(`Total hosts found: ${hosts.length}`);
-  await logger.addLine(`Total hosts found: ${hosts.length}`, true);
   console.log('Starting backup process\n')
-  await logger.addLine('Starting backup process');
+  await logger.addLine('Starting backup process', true);
 
   logger.startTimer();
   for (const [index, host] of hosts.entries()) {
@@ -33,16 +24,21 @@ async function backupHosts() {
         await delay(config.delays.listStep);
 
     } catch (err) {
-      console.error(`Error in saving backup for ${host.host}:`, err.message);
-      await logger.addLine(`Error in saving backup for ${host.host}: ${err.message}`, true);
+      console.error(`Error on ${host.host}: ${err.message}\n`);
+      await logger.addLine(`Error on ${host.host}: ${err.message}`, true);
     }
   }
   logger.stopTimer();
 
-  console.log('Hosts list has been processed.');
-  console.log(`Total saved backups: ${logger.savedBackups}.\nTotal failed: ${logger.failed}.`);
-  console.log(`Elapsed time: ${logger.elapsedTime} seconds.`);
-  await logger.addSummary();
+  let summary = 
+    'Hosts list has been processed.\n' +
+    `Total saved backups: ${logger.savedBackups}.\n` +
+    `Total failed: ${logger.failed}.\n` +
+    `Success rate: ${Math.round((logger.savedBackups/hosts.length)*100)}%\n` +
+    `Elapsed time: ${logger.elapsedTime} seconds`;
+    
+  console.log(summary);
+  await logger.addLine(summary);
   console.log(`Log file ${logger.fileName} created.`);
 }
 
