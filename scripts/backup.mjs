@@ -56,17 +56,18 @@ export async function saveBackup(address, name, key, sshport) {
         await delay(config.delays.creatingBackup);
 
         // Готовим папки и названия файлов
-        let date = getDate();
-        let folderName = `./backups/${date}/${address}`;
-        let backupName = `backup-${address}-${date}.backup`;
-        let exportName = `export-${address}-${date}.txt`;
-        await checkFolder(folderName);
+        let backupsFolder = `./output/${getDate()}/backups`;
+        let backupName = `${address}-${getDate(true)}.backup`;
+        let exportsFolder = `./output/${getDate()}/exports`;
+        let exportName = `${address}-${getDate(true)}.txt`;
+        await checkFolder(backupsFolder);
+        await checkFolder(exportsFolder);
 
         // Скачиваем backup файл
         console.log('Downloading backup file');
         await logger.addLine('Downloading backup file');
         await ssh.getFile(
-            `${folderName}/${backupName}`,   // Локальный файл
+            `${backupsFolder}/${backupName}`,   // Локальный файл
             '/backup.backup'                 // Файл на роутере
         );
 
@@ -82,7 +83,7 @@ export async function saveBackup(address, name, key, sshport) {
         }
 
         // Сохраняем вывод export в текстовый файл
-        await writeFile(`${folderName}/${exportName}`, exportResult.stdout);
+        await writeFile(`${exportsFolder}/${exportName}`, exportResult.stdout);
         console.log(`Export saved to ${exportName}. Disconnecting`);
         await logger.addLine(`Export saved to ${exportName}. Disconnecting`);
 
