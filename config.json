@@ -6,5 +6,13 @@
 
     "files": {
         "hostList": "hostList.csv"
+    },
+
+    "schedule": {
+        "enabled": true,
+        "dayOfWeek": "Sunday",
+        "timezone": "Europe/Moscow",
+        "hours": 22,
+        "minutes": 0
     }
 }

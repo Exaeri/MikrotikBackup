@@ -12,3 +12,14 @@ export function getDate(compact = false) {
     const date = new Date().toISOString().split('T')[0];
     return compact ? date.replace(/-/g, '') : date;
 }
+
+/**
+ * Форматирует полученный объект с датой и временем планировщика
+ * @param {Date} dateObj - Объект Date
+ * @returns {String} Возвращает строку с датой и временем следующей работы планировщика
+ */
+export function nextScheduled(dateTimeObj) {
+    const date = dateTimeObj.toISODate();
+    const time = dateTimeObj.toFormat('HH:mm');
+    return `on ${date} at ${time}`;
+}

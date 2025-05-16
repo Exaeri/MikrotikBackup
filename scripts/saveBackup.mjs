@@ -4,10 +4,11 @@ import { getDate } from './utility/formattedDate.mjs';
 import checkFolder from './utility/folder.mjs';
 import logger from './logger.mjs';
 import { writeFile} from 'fs/promises';
-import { loadConfig } from './configLoader.mjs';
+import { getConfig } from './configLoader.mjs';
 
 const ssh = new NodeSSH();
-const config = await loadConfig();
+const config = await getConfig();
+
 /**
  * Создает и скачивает backup файл с MikroTik роутера по SSH
  * @param {string} address - IP-адрес хоста
