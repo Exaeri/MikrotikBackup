@@ -38,7 +38,6 @@ export async function saveBackup(address, name, key, sshport) {
 
     console.log(`Connecting to ${address}`);
     await logger.addLine(`Connecting to ${address}`);
-
     try {
         // Подключение по SSH
         await ssh.connect({
@@ -46,6 +45,7 @@ export async function saveBackup(address, name, key, sshport) {
             username: name,
             password: key, 
             port: sshport,
+            readyTimeout: config.timeouts.sshconnect
         });
 
         // Отправляем команду на создание бэкапа
@@ -57,9 +57,10 @@ export async function saveBackup(address, name, key, sshport) {
         await delay(config.delays.creatingBackup);
 
         // Готовим папки и названия файлов
-        let backupsFolder = `./output/${getDate()}/backups`;
+        const date = getDate();
+        let backupsFolder = `./output/${date}/backups`;
         let backupName = `${address}-${getDate(true)}.backup`;
-        let exportsFolder = `./output/${getDate()}/exports`;
+        let exportsFolder = `./output/${date}/exports`;
         let exportName = `${address}-${getDate(true)}.txt`;
         await checkFolder(backupsFolder);
         await checkFolder(exportsFolder);
@@ -67,10 +68,18 @@ export async function saveBackup(address, name, key, sshport) {
         // Скачиваем backup файл
         console.log('Downloading backup file');
         await logger.addLine('Downloading backup file');
-        await ssh.getFile(
-            `${backupsFolder}/${backupName}`,   // Локальный файл
-            '/backup.backup'                 // Файл на роутере
-        );
+
+        try {
+            await Promise.race([
+                ssh.getFile(`${backupsFolder}/${backupName}`, '/backup.backup'),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('File download timeout')), 
+                    config.timeouts.sshdownload)
+                )
+            ]);
+        } catch (downloadErr) {
+            throw downloadErr;
+        }
 
         // После скачивания удаляем файл на роутере
         await ssh.execCommand('/file remove backup.backup');

@@ -8,6 +8,11 @@
         "hostList": "hostList.csv"
     },
 
+    "timeouts": {
+        "sshconnect": 5000,
+        "sshdownload": 120000
+    },
+
     "schedule": {
         "enabled": true,
         "dayOfWeek": "Sunday",

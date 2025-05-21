@@ -53,7 +53,9 @@ export async function getConfig() {
         let requiredFields = [
         'files.hostList',
         'delays.creatingBackup',
-        'delays.listStep'
+        'delays.listStep',
+        'timeouts.sshconnect',
+        'timeouts.sshdownload'
         ];
 
         // Проверка наличия обязательных полей
