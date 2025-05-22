@@ -6,7 +6,6 @@ import logger from './logger.mjs';
 import { writeFile} from 'fs/promises';
 import { getConfig } from './configLoader.mjs';
 
-const ssh = new NodeSSH();
 const config = await getConfig();
 
 /**
@@ -35,7 +34,7 @@ const config = await getConfig();
  * 10. Логирует результат
  */
 export async function saveBackup(address, name, key, sshport) {
-
+    const ssh = new NodeSSH();
     console.log(`Connecting to ${address}`);
     await logger.addLine(`Connecting to ${address}`);
     try {
@@ -45,7 +44,9 @@ export async function saveBackup(address, name, key, sshport) {
             username: name,
             password: key, 
             port: sshport,
-            readyTimeout: config.timeouts.sshconnect
+            readyTimeout: config.timeouts.sshconnect,
+            keepaliveInterval: config.timeouts.keepaliveInterval,
+            keepaliveCountMax: config.timeouts.keepaliveCountMax
         });
 
         // Отправляем команду на создание бэкапа
@@ -78,7 +79,14 @@ export async function saveBackup(address, name, key, sshport) {
                 )
             ]);
         } catch (downloadErr) {
-            throw downloadErr;
+            try {
+                if (ssh.isConnected()) {
+                    await ssh.execCommand('/file remove backup.backup');
+                }
+            } catch (cleanupErr) {
+                console.warn(`Cleanup failed: ${cleanupErr.message}`);
+            }
+            throw new Error(`Download failed: ${downloadErr.message}`);
         }
 
         // После скачивания удаляем файл на роутере
@@ -105,8 +113,11 @@ export async function saveBackup(address, name, key, sshport) {
         await logger.addLine('Success', true);
         logger.countSaved();
     } catch (err) {
+        if (err.code === 'ECONNRESET') {
+            console.warn('Connection was dropped by host');
+        }
         // При ошибке закрываем подключение
-        if (ssh.isConnected()) 
+        if (ssh && ssh.isConnected()) 
             ssh.dispose();
 
         logger.countFailed();

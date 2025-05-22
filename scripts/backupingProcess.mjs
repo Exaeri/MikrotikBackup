@@ -53,5 +53,6 @@ export async function doBackupingProcess() {
   } catch (err) {
     console.error('Backuping process error:', err.message);
     await logger.addLine(`Backuping process error:: ${err.message}`, true);
+    throw err;
   }
 }
