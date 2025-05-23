@@ -44,9 +44,9 @@ export async function saveBackup(address, name, key, sshport) {
             username: name,
             password: key, 
             port: sshport,
-            readyTimeout: config.timeouts.sshconnect,
-            keepaliveInterval: config.timeouts.keepaliveInterval,
-            keepaliveCountMax: config.timeouts.keepaliveCountMax
+            readyTimeout: config.timeouts.sshconnect
+            //keepaliveInterval: config.timeouts.keepaliveInterval,
+            //keepaliveCountMax: config.timeouts.keepaliveCountMax
         });
 
         // Отправляем команду на создание бэкапа
@@ -71,21 +71,23 @@ export async function saveBackup(address, name, key, sshport) {
         await logger.addLine('Downloading backup file');
 
         try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), config.timeouts.sshdownload);
+
             await Promise.race([
-                ssh.getFile(`${backupsFolder}/${backupName}`, '/backup.backup'),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('File download timeout')), 
-                    config.timeouts.sshdownload)
-                )
+                ssh.getFile(`${backupsFolder}/${backupName}`, '/backup.backup', {
+                    signal: controller.signal
+                }),
+                new Promise((_, reject) => {
+                    controller.signal.addEventListener('abort', () => {
+                        ssh.dispose();
+                        reject(new Error(`Download timeout after ${config.timeouts.sshdownload}ms`));
+                    });
+                })
             ]);
+
+            clearTimeout(timeout);
         } catch (downloadErr) {
-            try {
-                if (ssh.isConnected()) {
-                    await ssh.execCommand('/file remove backup.backup');
-                }
-            } catch (cleanupErr) {
-                console.warn(`Cleanup failed: ${cleanupErr.message}`);
-            }
             throw new Error(`Download failed: ${downloadErr.message}`);
         }
 
@@ -113,9 +115,6 @@ export async function saveBackup(address, name, key, sshport) {
         await logger.addLine('Success', true);
         logger.countSaved();
     } catch (err) {
-        if (err.code === 'ECONNRESET') {
-            console.warn('Connection was dropped by host');
-        }
         // При ошибке закрываем подключение
         if (ssh && ssh.isConnected()) 
             ssh.dispose();

@@ -55,9 +55,9 @@ export async function getConfig() {
         'delays.creatingBackup',
         'delays.listStep',
         'timeouts.sshconnect',
-        'timeouts.sshdownload',
-        'timeouts.keepaliveInterval',
-        'timeouts.keepaliveCountMax'
+        'timeouts.sshdownload'
+        //'timeouts.keepaliveInterval',
+        //'timeouts.keepaliveCountMax'
         ];
 
         // Проверка наличия обязательных полей
