@@ -44,9 +44,9 @@ export async function saveBackup(address, name, key, sshport) {
             username: name,
             password: key, 
             port: sshport,
-            readyTimeout: config.timeouts.sshconnect
-            //keepaliveInterval: config.timeouts.keepaliveInterval,
-            //keepaliveCountMax: config.timeouts.keepaliveCountMax
+            readyTimeout: config.timeouts.sshconnect,
+            keepaliveInterval: config.timeouts.keepaliveInterval || 0,
+            keepaliveCountMax: config.timeouts.keepaliveCountMax || 0
         });
 
         // Отправляем команду на создание бэкапа

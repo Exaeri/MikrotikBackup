@@ -30,14 +30,27 @@ import { appendFile, writeFile} from 'fs/promises';
  */
 export default class logger {
     static #logsFolder = `./logs`;
-    static #fileName = `${getDate()}.log`;
-    static #logsFilePath = `${this.#logsFolder}/${this.#fileName}`;
     static #savedBackups = 0;
     static #failed = 0;
     static #startTime = null;
     static #elapsedTime = 0;
 
-    
+    /**
+     * Динамически получаем имя файла в соответствии с текущей датой
+     * @returns {string}
+     */
+    static get #fileName() {
+        return `${getDate()}.log`;
+    }
+
+    /**
+     * Получаем актуальный путь для файла логов
+     * @returns {string}
+     */
+    static get #logsFilePath() {
+        return `${this.#logsFolder}/${this.#fileName}`;
+    }
+
     /**
      * Количество успешно сохраненных бэкапов
      * @returns {number}
