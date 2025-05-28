@@ -38,123 +38,89 @@ export async function saveBackup(address, name, key, sshport) {
     const ssh = new NodeSSH();
     console.log(`Connecting to ${address}`);
     await logger.addLine(`Connecting to ${address}`);
+    
+    const hostTimeout = config.timeouts.perHost || 180000;
+    let timeoutHandle;
+
     try {
-        // Подключение по SSH
-        await ssh.connect({
-            host: address, 
-            username: name,
-            password: key, 
-            port: sshport,
-            readyTimeout: config.timeouts.sshconnect,
-            keepaliveInterval: config.timeouts.keepaliveInterval || 0,
-            keepaliveCountMax: config.timeouts.keepaliveCountMax || 0
-        });
+        await Promise.race([
+            (async () => {
+                // Подключение по SSH
+                await ssh.connect({
+                    host: address, 
+                    username: name,
+                    password: key, 
+                    port: sshport,
+                    readyTimeout: config.timeouts.sshconnect,
+                });
 
-        // Отправляем команду на создание бэкапа
-        await ssh.execCommand('/system backup save name=backup');
-        console.log('Creating backup file');
-        await logger.addLine('Creating backup file');
+                // Отправляем команду на создание бэкапа
+                await ssh.execCommand('/system backup save name=backup');
+                console.log('Creating backup file');
+                await logger.addLine('Creating backup file');
 
-        //Ждем заданное в конфиге время, чтобы бэкап создался
-        await delay(config.delays.creatingBackup);
+                //Ждем заданное в конфиге время, чтобы бэкап создался
+                await delay(config.delays.creatingBackup);
 
-        // Готовим папки и названия файлов
-        const date = getDate();
-        let backupsFolder = `./output/${date}/backups`;
-        let backupName = `${address}-${getDate(true)}.backup`;
-        let exportsFolder = `./output/${date}/exports`;
-        let exportName = `${address}-${getDate(true)}.txt`;
-        await checkFolder(backupsFolder);
-        await checkFolder(exportsFolder);
+                // Готовим папки и названия файлов
+                const date = getDate();
+                const backupsFolder = `./output/${date}/backups`;
+                const backupName = `${address}-${getDate(true)}.backup`;
+                const exportsFolder = `./output/${date}/exports`;
+                const exportName = `${address}-${getDate(true)}.txt`;
+                await checkFolder(backupsFolder);
+                await checkFolder(exportsFolder);
 
-        // Скачиваем backup файл
-        console.log('Downloading backup file');
-        await logger.addLine('Downloading backup file');
+                // Скачиваем backup файл
+                console.log('Downloading backup file');
+                await logger.addLine('Downloading backup file');
+                await ssh.getFile(
+                    `${backupsFolder}/${backupName}`,   // Локальный файл
+                    '/backup.backup'                 // Файл на роутере
+                );
 
-        await new Promise((resolve, reject) => {
-            const localPath = `${backupsFolder}/${backupName}`;
+                // После скачивания удаляем файл на роутере
+                await ssh.execCommand('/file remove backup.backup');
+                console.log(`File ${backupName} downloaded. Creating export.`);
+                await logger.addLine(`File ${backupName} downloaded. Creating export.`);
 
-            const timeout = setTimeout(() => {
-                cleanup();
-                reject(new Error(`Download timeout after ${config.timeouts.sshdownload}ms`));
-            }, config.timeouts.sshdownload);
-
-            let lastActivity = Date.now();
-            const progressInterval = setInterval(() => {
-                if (Date.now() - lastActivity > 15000) {
-                    clearInterval(progressInterval);
-                    cleanup();
-                    reject(new Error('No download progress for 15 seconds'));
-                }
-            }, 5000);
-
-            function cleanup() {
-                clearTimeout(timeout);
-                clearInterval(progressInterval);
-                try { if (ssh.isConnected()) ssh.dispose(); } catch (_) {}
-            }
-
-            ssh.connection.sftp((sftpErr, sftp) => {
-                if (sftpErr) {
-                    cleanup();
-                    return reject(sftpErr);
+                // Отправляем команду export compact
+                const exportResult = await ssh.execCommand('/export compact');
+                if (exportResult.stderr) {
+                    throw new Error(`Export failed: ${exportResult.stderr}`);
                 }
 
-                const readStream = sftp.createReadStream('/backup.backup');
-                const writeStream = fs.createWriteStream(localPath);
+                // Сохраняем вывод export в текстовый файл
+                await writeFile(`${exportsFolder}/${exportName}`, exportResult.stdout);
+                console.log(`Export saved to ${exportName}. Disconnecting`);
+                await logger.addLine(`Export saved to ${exportName}. Disconnecting`);
 
-                readStream.on('data', () => {
-                    lastActivity = Date.now();
-                });
-
-                readStream.on('error', err => {
-                    cleanup();
-                    reject(err);
-                });
-
-                writeStream.on('error', err => {
-                    cleanup();
-                    reject(err);
-                });
-
-                writeStream.on('finish', () => {
-                    cleanup();
-                    resolve();
-                });
-
-                readStream.pipe(writeStream);
-            });
-        });
-
-        // После скачивания удаляем файл на роутере
-        await ssh.execCommand('/file remove backup.backup');
-        console.log(`File ${backupName} downloaded. Creating export.`);
-        await logger.addLine(`File ${backupName} downloaded. Creating export.`);
-
-        // Отправляем команду export compact
-        let exportResult = await ssh.execCommand('/export compact');
-        if (exportResult.stderr) {
-            throw new Error(`Export failed: ${exportResult.stderr}`);
-        }
-
-        // Сохраняем вывод export в текстовый файл
-        await writeFile(`${exportsFolder}/${exportName}`, exportResult.stdout);
-        console.log(`Export saved to ${exportName}. Disconnecting`);
-        await logger.addLine(`Export saved to ${exportName}. Disconnecting`);
-
-        // Закрывем ssh подключение
-        ssh.dispose();
-
-        // Логирование успеха
-        console.log('Success\n');
-        await logger.addLine('Success', true);
-        logger.countSaved();
+                // Закрывем ssh подключение и логируем успех
+                ssh.dispose();
+                console.log('Success\n');
+                await logger.addLine('Success', true);
+                logger.countSaved();
+            })(),
+            
+            new Promise((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    // При таймауте закрываем подключение
+                    try {
+                        if (ssh.isConnected()) ssh.dispose();
+                    } catch {}
+                    
+                    reject(new Error(`Host processing timeout after ${hostTimeout}ms`));
+                }, hostTimeout);
+            })
+        ]);
     } catch (err) {
-        // При ошибке закрываем подключение
-        if (ssh && ssh.isConnected()) 
-            ssh.dispose();
-
         logger.countFailed();
         throw err;
+    } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        // При ошибке закрываем подключение
+        try {
+            if (ssh.isConnected()) ssh.dispose();
+        } catch {}
     }
 }

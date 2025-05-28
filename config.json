@@ -10,9 +10,7 @@
 
     "timeouts": {
         "sshconnect": 5000,
-        "sshdownload": 60000,
-        "keepaliveInterval": 30000,
-        "keepaliveCountMax": 3
+        "perHost": 120000
     },
 
     "schedule": {
