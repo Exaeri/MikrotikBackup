@@ -1,9 +1,10 @@
 import { NodeSSH } from 'node-ssh';
+import fs from 'fs';
 import { delay } from './utility/delay.mjs';
 import { getDate } from './utility/formattedDate.mjs';
 import checkFolder from './utility/folder.mjs';
 import logger from './logger.mjs';
-import { writeFile} from 'fs/promises';
+import { writeFile } from 'fs/promises';
 import { getConfig } from './configLoader.mjs';
 
 const config = await getConfig();
@@ -70,26 +71,60 @@ export async function saveBackup(address, name, key, sshport) {
         console.log('Downloading backup file');
         await logger.addLine('Downloading backup file');
 
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), config.timeouts.sshdownload);
+        await new Promise((resolve, reject) => {
+            const localPath = `${backupsFolder}/${backupName}`;
 
-            await Promise.race([
-                ssh.getFile(`${backupsFolder}/${backupName}`, '/backup.backup', {
-                    signal: controller.signal
-                }),
-                new Promise((_, reject) => {
-                    controller.signal.addEventListener('abort', () => {
-                        ssh.dispose();
-                        reject(new Error(`Download timeout after ${config.timeouts.sshdownload}ms`));
-                    });
-                })
-            ]);
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error(`Download timeout after ${config.timeouts.sshdownload}ms`));
+            }, config.timeouts.sshdownload);
 
-            clearTimeout(timeout);
-        } catch (downloadErr) {
-            throw new Error(`Download failed: ${downloadErr.message}`);
-        }
+            let lastActivity = Date.now();
+            const progressInterval = setInterval(() => {
+                if (Date.now() - lastActivity > 15000) {
+                    clearInterval(progressInterval);
+                    cleanup();
+                    reject(new Error('No download progress for 15 seconds'));
+                }
+            }, 5000);
+
+            function cleanup() {
+                clearTimeout(timeout);
+                clearInterval(progressInterval);
+                try { if (ssh.isConnected()) ssh.dispose(); } catch (_) {}
+            }
+
+            ssh.connection.sftp((sftpErr, sftp) => {
+                if (sftpErr) {
+                    cleanup();
+                    return reject(sftpErr);
+                }
+
+                const readStream = sftp.createReadStream('/backup.backup');
+                const writeStream = fs.createWriteStream(localPath);
+
+                readStream.on('data', () => {
+                    lastActivity = Date.now();
+                });
+
+                readStream.on('error', err => {
+                    cleanup();
+                    reject(err);
+                });
+
+                writeStream.on('error', err => {
+                    cleanup();
+                    reject(err);
+                });
+
+                writeStream.on('finish', () => {
+                    cleanup();
+                    resolve();
+                });
+
+                readStream.pipe(writeStream);
+            });
+        });
 
         // После скачивания удаляем файл на роутере
         await ssh.execCommand('/file remove backup.backup');
