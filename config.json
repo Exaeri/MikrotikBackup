@@ -10,7 +10,10 @@
 
     "timeouts": {
         "sshconnect": 5000,
-        "perHost": 120000
+        "perHost": 120000,
+        "execCommand": 15000,
+        "fileDownload": 60000,
+        "exportCompact": 15000
     },
 
     "schedule": {
