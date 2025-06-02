@@ -107,17 +107,16 @@ export function exportCompact(connection, localPath, timeout = 0) {
       const writeStream = fs.createWriteStream(localPath);
 
       stream.on('data', (chunk) => {
+        outputBuffer += chunk.toString();
         writeStream.write(chunk);
       });
 
       stream.on('close', (code) => {
         writeStream.end();
         if (timer) clearTimeout(timer);
-
-        if (code !== 0) {
-          return reject(new Error(`Export command failed with code ${code}`));
+        if (code !== 0 && outputBuffer.trim().length === 0) {
+          return reject(new Error(`Export command failed with code ${code} and empty output`));
         }
-
         resolve();
       });
 

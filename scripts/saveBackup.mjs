@@ -4,6 +4,7 @@ import { getDate } from './utility/formattedDate.mjs';
 import checkFolder from './utility/folder.mjs';
 import logger from './logger.mjs';
 import { getConfig } from './configLoader.mjs';
+import { checkFile } from './utility/fileExists.mjs';
 import path from 'path';
 
 const config = await getConfig();
@@ -69,6 +70,8 @@ export async function saveBackup(address, name, key, sshport) {
         const exportsFolder = `./output/${date}/exports`;
         const backupName = `${address}-${shortDate}.backup`;
         const exportName = `${address}-${shortDate}.txt`;
+        const backupFilePath = path.join(backupsFolder, backupName);
+        const exportFilePath = path.join(exportsFolder, exportName);
 
         await checkFolder(backupsFolder);
         await checkFolder(exportsFolder);
@@ -76,7 +79,10 @@ export async function saveBackup(address, name, key, sshport) {
         // Скачиваем backup файл
         console.log('Downloading backup file');
         await logger.addLine('Downloading backup file');
-        await downloadBackup(connection, '/backup.backup', path.join(backupsFolder, backupName), config.timeouts.fileDownload);
+        await downloadBackup(connection, '/backup.backup', backupFilePath, config.timeouts.fileDownload);
+        if (!await checkFile(backupFilePath)) {
+          throw new Error(`Backup file wasn't saved for some reason`);
+        }
 
         // После скачивания удаляем файл на роутере
         await execCommand(connection, '/file remove backup.backup', config.timeouts.execCommand);
@@ -84,7 +90,10 @@ export async function saveBackup(address, name, key, sshport) {
         await logger.addLine(`File ${backupName} downloaded. Creating export.`);
 
         // Выполняем export compact
-        await exportCompact(connection, path.join(exportsFolder, exportName), config.timeouts.exportCompact);
+        await exportCompact(connection, exportFilePath, config.timeouts.exportCompact);
+        if (!await checkFile(exportFilePath)) {
+          throw new Error(`Export file wasn't saved for some reason`);
+        }
         console.log(`Export saved to ${exportName}. Disconnecting`);
         await logger.addLine(`Export saved to ${exportName}. Disconnecting`);
 
