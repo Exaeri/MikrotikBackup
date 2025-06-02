@@ -42,7 +42,7 @@ export function execCommand(connection, command, timeout = 0) {
       let stdout = '', stderr = '';
       stream.on('close', (code) => {
         if (timer) clearTimeout(timer);
-        if (code !== 0) return reject(new Error(`Command failed: ${cmd}\n${stderr}`));
+        if (code !== 0) return reject(new Error(`Command failed: ${command}\n${stderr}`));
         resolve(stdout);
       }).on('data', data => stdout += data.toString())
         .stderr.on('data', data => stderr += data.toString())
@@ -91,7 +91,12 @@ export function downloadBackup(connection, remotePath, localPath, timeout = 0) {
 export function exportCompact(connection, localPath, timeout = 0) {
   return new Promise((resolve, reject) => {
     let timer;
-    if (timeout) timer = setTimeout(() => reject(new Error('Export compact timeout')), timeout);
+
+    if (timeout) {
+      timer = setTimeout(() => {
+        reject(new Error('Export compact timeout'));
+      }, timeout);
+    }
 
     connection.exec('/export compact', (err, stream) => {
       if (err) {
@@ -100,21 +105,31 @@ export function exportCompact(connection, localPath, timeout = 0) {
       }
 
       const writeStream = fs.createWriteStream(localPath);
-      stream.pipe(writeStream);
+
+      stream.on('data', (chunk) => {
+        writeStream.write(chunk);
+      });
 
       stream.on('close', (code) => {
+        writeStream.end();
         if (timer) clearTimeout(timer);
-        if (code !== 0) return reject(new Error('Export command failed'));
+
+        if (code !== 0) {
+          return reject(new Error(`Export command failed with code ${code}`));
+        }
+
         resolve();
       });
 
       stream.on('error', (err) => {
         if (timer) clearTimeout(timer);
+        writeStream.destroy();
         reject(err);
       });
 
       writeStream.on('error', (err) => {
         if (timer) clearTimeout(timer);
+        stream.destroy();
         reject(err);
       });
     });

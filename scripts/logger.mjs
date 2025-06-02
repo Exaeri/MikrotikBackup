@@ -34,13 +34,14 @@ export default class logger {
     static #failed = 0;
     static #startTime = null;
     static #elapsedTime = 0;
+    static #currentDate = null;
 
     /**
      * Динамически получаем имя файла в соответствии с текущей датой
      * @returns {string}
      */
     static get #fileName() {
-        return `${getDate()}.log`;
+        return `${this.#currentDate|| getDate()}.log`;
     }
 
     /**
@@ -143,6 +144,7 @@ export default class logger {
     static async clearLog() {
         await checkFolder(this.#logsFolder);
         this.#flushCounters();
+        this.#currentDate = getDate();
         try {
             await writeFile(this.#logsFilePath, '');
         } catch (err) {
