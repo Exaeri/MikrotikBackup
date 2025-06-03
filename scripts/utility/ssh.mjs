@@ -31,7 +31,7 @@ export function sshConnect({ host, port, username, password, readyTimeout }) {
  */
 export async function execCommand(connection, command, timeout = 0) {
   const ssh = new NodeSSH();
-  ssh.connection = connection.connection;
+  ssh.connection = connection;
 
   const timeoutError = new Error(`Command ${command} timeout`);
 
@@ -87,7 +87,7 @@ export function downloadBackup(connection, remotePath, localPath, timeout = 0) {
  */
 export async function exportCompact(connection, localPath, timeout = 0) {
   const ssh = new NodeSSH();
-  ssh.connection = connection.connection;
+  ssh.connection = connection;
 
   const timeoutError = new Error('Export compact timeout');
 
