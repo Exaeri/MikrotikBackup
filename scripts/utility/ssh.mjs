@@ -1,5 +1,6 @@
 import { Client } from 'ssh2';
 import fs from 'fs';
+import { NodeSSH } from 'node-ssh';
 
 /**
  * Устанавливает SSH-подключение к удалённому хосту.
@@ -28,30 +29,26 @@ export function sshConnect({ host, port, username, password, readyTimeout }) {
  * @param {number} [timeout=0] - Максимальное время ожидания выполнения команды (мс).
  * @returns {Promise<string>} Вывод выполненной команды.
  */
-export function execCommand(connection, command, timeout = 0) {
-  return new Promise((resolve, reject) => {
-    let timer;
-    if (timeout) timer = setTimeout(() => reject(new Error(`Timeout: ${command}`)), timeout);
+export async function execCommand(connection, command, timeout = 0) {
+  const ssh = new NodeSSH();
+  ssh.connection = connection.connection;
 
-    connection.exec(command, (err, stream) => {
-      if (err) {
-        if (timer) clearTimeout(timer);
-        return reject(err);
+  const timeoutError = new Error(`Command ${command} timeout`);
+
+  return Promise.race([
+    (async () => {
+      const result = await ssh.execCommand(command);
+
+      if (result.stderr) {
+        throw new Error(`Command ${command} failed: ${result.stderr}`);
       }
 
-      let stdout = '', stderr = '';
-      stream.on('close', (code) => {
-        if (timer) clearTimeout(timer);
-        if (code !== 0) return reject(new Error(`Command failed: ${command}\n${stderr}`));
-        resolve(stdout);
-      }).on('data', data => stdout += data.toString())
-        .stderr.on('data', data => stderr += data.toString())
-        .on('error', err => {
-          if (timer) clearTimeout(timer);
-          reject(err);
-        });
-    });
-  });
+      return result.stdout;
+    })(),
+    timeout
+      ? new Promise((_, reject) => setTimeout(() => reject(timeoutError), timeout))
+      : new Promise(() => {})
+  ]);
 }
 
 /**
@@ -88,49 +85,24 @@ export function downloadBackup(connection, remotePath, localPath, timeout = 0) {
  * @param {number} [timeout=0] - Таймаут выполнения команды в миллисекундах.
  * @returns {Promise<void>} Промис, завершающийся после успешного экспорта и записи в файл.
  */
-export function exportCompact(connection, localPath, timeout = 0) {
-  return new Promise((resolve, reject) => {
-    let timer;
+export async function exportCompact(connection, localPath, timeout = 0) {
+  const ssh = new NodeSSH();
+  ssh.connection = connection.connection;
 
-    if (timeout) {
-      timer = setTimeout(() => {
-        reject(new Error('Export compact timeout'));
-      }, timeout);
-    }
+  const timeoutError = new Error('Export compact timeout');
 
-    connection.exec('/export compact', (err, stream) => {
-      if (err) {
-        if (timer) clearTimeout(timer);
-        return reject(err);
+  return Promise.race([
+    (async () => {
+      const result = await ssh.execCommand('/export compact');
+
+      if (result.stderr) {
+        throw new Error(`Export compact failed: ${result.stderr}`);
       }
 
-      const writeStream = fs.createWriteStream(localPath);
-
-      stream.on('data', (chunk) => {
-        outputBuffer += chunk.toString();
-        writeStream.write(chunk);
-      });
-
-      stream.on('close', (code) => {
-        writeStream.end();
-        if (timer) clearTimeout(timer);
-        if (code !== 0 && outputBuffer.trim().length === 0) {
-          return reject(new Error(`Export command failed with code ${code} and empty output`));
-        }
-        resolve();
-      });
-
-      stream.on('error', (err) => {
-        if (timer) clearTimeout(timer);
-        writeStream.destroy();
-        reject(err);
-      });
-
-      writeStream.on('error', (err) => {
-        if (timer) clearTimeout(timer);
-        stream.destroy();
-        reject(err);
-      });
-    });
-  });
+      await writeFile(localPath, result.stdout);
+    })(),
+    timeout
+      ? new Promise((_, reject) => setTimeout(() => reject(timeoutError), timeout))
+      : new Promise(() => {})
+  ]);
 }
