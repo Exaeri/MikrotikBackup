@@ -22,6 +22,6 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (err) => {
-  logger.addLine(`Unhandled Exception: ${err}`);
-  console.error(`Unhandled Exception: ${err}`);
+  logger.addLine(`Unhandled Rejection: ${err}`);
+  console.error(`Unhandled Rejection: ${err}`);
 });

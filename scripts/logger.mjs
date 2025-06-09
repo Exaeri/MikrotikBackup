@@ -31,7 +31,9 @@ import { appendFile, writeFile} from 'fs/promises';
 export default class logger {
     static #logsFolder = `./logs`;
     static #savedBackups = 0;
-    static #failed = 0;
+    static #savedExports = 0;
+    static #successHosts = 0;
+    static #errors = 0;
     static #startTime = null;
     static #elapsedTime = 0;
     static #currentDate = null;
@@ -53,7 +55,7 @@ export default class logger {
     }
 
     /**
-     * Количество успешно сохраненных бэкапов
+     * Количество сохраненных бэкапов
      * @returns {number}
      */
     static get savedBackups() {
@@ -61,11 +63,27 @@ export default class logger {
     }
 
     /**
+     * Количество сохраненных экспортов
+     * @returns {number}
+     */
+    static get savedExports() {
+        return this.#savedExports;
+    }
+
+    /**
+     * Количество успешно сохраненных бэкапов
+     * @returns {number}
+     */
+    static get successHosts() {
+        return this.#successHosts;
+    }
+
+    /**
      * Количество неудач при попытке получить бэкап
      * @returns {number}
      */
-    static get failed() {
-        return this.#failed;
+    static get errors() {
+        return this.#errors;
     }
 
     /**
@@ -115,17 +133,31 @@ export default class logger {
     }
 
     /**
-     * Увеличивает счетчик успешных бэкапов
+     * Увеличивает счетчик сохраненных бэкапов
      */
-    static countSaved() {
+    static countBackups() {
         this.#savedBackups++;
     }
 
     /**
-     * Увеличивает счетчик неудач
+     * Увеличивает счетчик сохраненных экспортов
      */
-    static countFailed() {
-        this.#failed++;
+    static countExports() {
+        this.#savedExports++;
+    }
+
+    /**
+     * Увеличивает счетчик успешных хостов
+     */
+    static countSuccess() {
+        this.#successHosts++;
+    }
+
+    /**
+     * Увеличивает счетчик ошибок
+     */
+    static countErrors() {
+        this.#errors++;
     }
 
     /**
@@ -134,7 +166,9 @@ export default class logger {
      */
     static #flushCounters() {
         this.#savedBackups = 0;
-        this.#failed = 0;
+        this.#errors = 0;
+        this.#savedExports = 0;
+        this.#successHosts = 0;
     }
 
     /**

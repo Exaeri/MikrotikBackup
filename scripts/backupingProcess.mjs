@@ -42,8 +42,10 @@ export async function doBackupingProcess() {
     let successRate = Math.round((logger.savedBackups / hosts.length) * 100);
     let summary = 
       'Hosts list has been processed.\n' +
-      `Total saved backups: ${logger.savedBackups}.\n` +
-      `Total failed: ${logger.failed}.\n` +
+      `Saved backups: ${logger.savedBackups}.\n` +
+      `Saved exports: ${logger.savedExports}.\n` +
+      `Successful hosts: ${logger.successHosts}.\n` +
+      `Fails: ${logger.errors}.\n` +
       `Success rate: ${successRate}%\n` +
       `Elapsed time: ${logger.elapsedTime} seconds\n`;
       

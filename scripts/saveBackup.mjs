@@ -80,28 +80,30 @@ export async function saveBackup(address, name, key, sshport) {
         console.log('Downloading backup file');
         await logger.addLine('Downloading backup file');
         await downloadBackup(connection, '/backup.backup', backupFilePath, config.timeouts.fileDownload);
-        if (!await checkFile(backupFilePath)) {
-          throw new Error(`Backup file wasn't saved for some reason`);
+        if (await checkFile(backupFilePath)) {
+          logger.countBackups();
+          await execCommand(connection, '/file remove backup.backup', config.timeouts.execCommand);
+          console.log(`File ${backupName} downloaded. Creating export.`);
+          await logger.addLine(`File ${backupName} downloaded. Creating export.`);
         }
-
-        // После скачивания удаляем файл на роутере
-        await execCommand(connection, '/file remove backup.backup', config.timeouts.execCommand);
-        console.log(`File ${backupName} downloaded. Creating export.`);
-        await logger.addLine(`File ${backupName} downloaded. Creating export.`);
+        else
+          throw new Error(`Backup file wasn't saved for some reason`);
 
         // Выполняем export compact
         await exportCompact(connection, exportFilePath, config.timeouts.exportCompact);
-        if (!await checkFile(exportFilePath)) {
-          throw new Error(`Export file wasn't saved for some reason`);
+        if (await checkFile(exportFilePath)) {
+          logger.countExports();
+          console.log(`Export saved to ${exportName}. Disconnecting`);
+          await logger.addLine(`Export saved to ${exportName}. Disconnecting`);
         }
-        console.log(`Export saved to ${exportName}. Disconnecting`);
-        await logger.addLine(`Export saved to ${exportName}. Disconnecting`);
+        else
+          throw new Error(`Export file wasn't saved for some reason`);
 
         // Закрывем ssh подключение и логируем успех
         connection.end();
         console.log('Success\n');
         await logger.addLine('Success', true);
-        logger.countSaved();
+        logger.countSuccess();
       })(),
       new Promise((_, reject) => {
         timeoutHandle = setTimeout(() => {
@@ -113,7 +115,7 @@ export async function saveBackup(address, name, key, sshport) {
       })
     ]);
   } catch (err) {
-    logger.countFailed();
+    logger.countErrors();
     throw err;
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);

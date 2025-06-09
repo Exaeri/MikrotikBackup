@@ -1,6 +1,7 @@
 import { Client } from 'ssh2';
 import fs from 'fs';
 import { NodeSSH } from 'node-ssh';
+import { writeFile } from 'fs/promises';
 
 /**
  * Устанавливает SSH-подключение к удалённому хосту.
