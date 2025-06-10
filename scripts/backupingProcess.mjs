@@ -39,7 +39,7 @@ export async function doBackupingProcess() {
     logger.stopTimer();
 
     //После прохода всех хостов остановили таймер, выводим итоговую статистику в консоль и лог файл
-    let successRate = Math.round((logger.savedBackups / hosts.length) * 100);
+    let successRate = Math.round((logger.successHosts / hosts.length) * 100);
     let summary = 
       'Hosts list has been processed.\n' +
       `Saved backups: ${logger.savedBackups}.\n` +

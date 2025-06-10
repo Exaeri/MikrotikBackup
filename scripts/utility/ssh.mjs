@@ -30,26 +30,15 @@ export function sshConnect({ host, port, username, password, readyTimeout }) {
  * @param {number} [timeout=0] - Максимальное время ожидания выполнения команды (мс).
  * @returns {Promise<string>} Вывод выполненной команды.
  */
-export async function execCommand(connection, command, timeout = 0) {
+export async function execCommand(connection, command) {
   const ssh = new NodeSSH();
   ssh.connection = connection;
 
-  const timeoutError = new Error(`Command ${command} timeout`);
-
-  return Promise.race([
-    (async () => {
-      const result = await ssh.execCommand(command);
-
-      if (result.stderr) {
-        throw new Error(`Command ${command} failed: ${result.stderr}`);
-      }
-
-      return result.stdout;
-    })(),
-    timeout
-      ? new Promise((_, reject) => setTimeout(() => reject(timeoutError), timeout))
-      : new Promise(() => {})
-  ]);
+  const result = await ssh.execCommand(command);
+  if (result.stderr) {
+    throw new Error(`Command ${command} failed: ${result.stderr}`);
+  }
+  return result.stdout;
 }
 
 /**
@@ -83,27 +72,15 @@ export function downloadBackup(connection, remotePath, localPath, timeout = 0) {
  * 
  * @param {Client} connection - Установленное SSH-соединение.
  * @param {string} localPath - Путь к локальному файлу для сохранения конфигурации.
- * @param {number} [timeout=0] - Таймаут выполнения команды в миллисекундах.
  * @returns {Promise<void>} Промис, завершающийся после успешного экспорта и записи в файл.
  */
-export async function exportCompact(connection, localPath, timeout = 0) {
+export async function exportCompact(connection, localPath) {
   const ssh = new NodeSSH();
   ssh.connection = connection;
 
-  const timeoutError = new Error('Export compact timeout');
-
-  return Promise.race([
-    (async () => {
-      const result = await ssh.execCommand('/export compact');
-
-      if (result.stderr) {
-        throw new Error(`Export compact failed: ${result.stderr}`);
-      }
-
-      await writeFile(localPath, result.stdout);
-    })(),
-    timeout
-      ? new Promise((_, reject) => setTimeout(() => reject(timeoutError), timeout))
-      : new Promise(() => {})
-  ]);
+  const result = await ssh.execCommand('/export compact');
+  if (result.stderr) {
+    throw new Error(`Export compact failed: ${result.stderr}`);
+  }
+  await writeFile(localPath, result.stdout);
 }

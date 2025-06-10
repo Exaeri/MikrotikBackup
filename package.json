@@ -1,6 +1,6 @@
 {
   "name": "mikrotikbackup",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "type": "module",
   "description": "Creating backups from list of mikrotik routers via SSH and saving them localy.",
   "main": "index.mjs",
