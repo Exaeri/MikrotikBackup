@@ -75,7 +75,7 @@ export function downloadBackup(connection, remotePath, localPath, timeout = 0) {
  * @param {string} resultMinLength - Минимальное количество символов экспорта (экспорт считается неполным, если меньше).
  * @returns {Promise<void>} Промис, завершающийся после успешного экспорта и записи в файл.
  */
-export async function exportCompact(connection, localPath, resultMinLength) {
+export async function exportCompact(connection, localPath) {
   const ssh = new NodeSSH();
   ssh.connection = connection;
 
@@ -83,10 +83,6 @@ export async function exportCompact(connection, localPath, resultMinLength) {
     const result = await ssh.execCommand('/export compact');
     if (result.stderr || !result.stdout) {
       throw new Error(`Export compact failed: ${result.stderr}`);
-    }
-
-    if (result.stdout.length < resultMinLength) { 
-      throw new Error(`Export too short. Looks like incomplete.`);
     }
 
     await writeFile(localPath, result.stdout);

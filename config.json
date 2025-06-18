@@ -10,7 +10,6 @@
 
     "timeouts": {
         "sshconnect": 5000,
-        "exportMinLength": 5000,
         "fileDownload": 60000
     },
 

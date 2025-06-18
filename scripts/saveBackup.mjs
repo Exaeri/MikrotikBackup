@@ -38,9 +38,8 @@ const config = await getConfig();
 export async function saveBackup(address, name, key, sshport) {
   console.log(`Connecting to ${address}`);
   await logger.addLine(`Connecting to ${address}`);
-  let timeoutHandle;
   let connection;
-
+  
   try {
     // Подключение по SSH
     connection = await sshConnect({
@@ -87,7 +86,7 @@ export async function saveBackup(address, name, key, sshport) {
     }
     
     // Выполняем export compact
-    await exportCompact(connection, exportFilePath, config.timeouts.exportMinLength);
+    await exportCompact(connection, exportFilePath);
     if (await checkFile(exportFilePath)) {
       logger.countExports();
       console.log(`Export saved to ${exportName}. Disconnecting`);
